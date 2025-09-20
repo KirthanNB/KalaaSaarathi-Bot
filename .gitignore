@@ -1,0 +1,84 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+venv*/
+env.py
+env.bak/
+venv.bak/
+
+# Environment variables
+.env
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+temp_audio/
+temp_images/
+temp_videos/
+inbox/
+out/
+static/
+node_modules/
+
+# Firebase
+.firebase/
+firebase-debug.log
+firebase-deploy.cache
+
+# Keys and secrets
+key.json
+craftlink-vision.json
+*.key
+*.pem
+*.crt
+*.cer
+
+# PythonAnywhere
+.pythonanywhere
+
+.vercel
