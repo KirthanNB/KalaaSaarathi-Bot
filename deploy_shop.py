@@ -223,14 +223,14 @@ def build_and_host(product_id: str, description: str, image_urls: list, title: s
         
         if deploy_success:
             print("✅ Product deployed successfully!")
-            return f"https://neethi-saarathi-ids.web.app/product/{product_id}.html"
+            return f"https://neethi-saarathi-ids.web.app/product/{product_id}"
         else:
             print("⚠️ Firebase deployment failed, using fallback URL")
-            return f"https://neethi-saarathi-ids.web.app/product/{product_id}.html"
+            return f"https://neethi-saarathi-ids.web.app/product/{product_id}"
         
     except Exception as e:
         print(f"Error: {e}")
-        return f"https://neethi-saarathi-ids.web.app/product/{product_id}.html"
+        return f"https://neethi-saarathi-ids.web.app/product/{product_id}"
 
 def update_products_json(product_data):
     """Update the public products.json file"""
@@ -507,7 +507,7 @@ def create_seller_pages():
                     <p class="text-gray-600 text-sm mb-3">{product['description'][:70]}{'...' if len(product['description']) > 70 else ''}</p>
                     <div class="flex items-center justify-between">
                         <span class="text-amber-600 font-bold">₹{product['price']}</span>
-                        <a href="/product/{product['id']}" class="text-amber-500 hover:text-amber-600">View →</a>
+                        <a href="/product/{product['id']}" target="_blank" class="text-amber-500 hover:text-amber-600">View →</a>
                     </div>
                 </div>
             </div>
@@ -528,7 +528,7 @@ def create_seller_pages():
             # Save seller page
             seller_dir = f"{shop_dir}/seller"
             os.makedirs(seller_dir, exist_ok=True)
-            with open(f"{seller_dir}/{seller_phone}.html", "w", encoding="utf-8") as f:
+            with open(f"{seller_dir}/{seller_phone}", "w", encoding="utf-8") as f:
                 f.write(html_content)
         
         print("✅ Created seller profile pages")
@@ -845,20 +845,21 @@ def create_shop_index():
 '''
 
         # Add product cards (show latest 12 products)
+        # Add product cards (show latest 12 products)
         for product in products[-12:]:
             html_content += f'''
-            <div class="product-card bg-white rounded-xl shadow-md overflow-hidden" data-category="{product.get('category', 'handmade')}">
-                <img src="{product['images'][0]}" alt="{product['title']}" class="w-full h-48 object-cover">
-                <div class="p-4">
-                    <h3 class="font-semibold text-lg mb-2">{product['title'][:50]}{'...' if len(product['title']) > 50 else ''}</h3>
-                    <p class="text-gray-600 text-sm mb-3">{product['description'][:80]}{'...' if len(product['description']) > 80 else ''}</p>
-                    <div class="flex items-center justify-between">
-                        <span class="text-amber-600 font-bold">₹{product['price']}</span>
-                        <a href="/product/{product['id']}" class="text-amber-500 hover:text-amber-600">View →</a>
-                    </div>
+        <div class="product-card bg-white rounded-xl shadow-md overflow-hidden" data-category="{product.get('category', 'handmade')}">
+            <img src="{product['images'][0]}" alt="{product['title']}" class="w-full h-48 object-cover">
+            <div class="p-4">
+                <h3 class="font-semibold text-lg mb-2">{product['title'][:50]}{'...' if len(product['title']) > 50 else ''}</h3>
+                <p class="text-gray-600 text-sm mb-3">{product['description'][:80]}{'...' if len(product['description']) > 80 else ''}</p>
+                <div class="flex items-center justify-between">
+                    <span class="text-amber-600 font-bold">₹{product['price']}</span>
+                    <a href="/product/{product['id']}" class="text-amber-500 hover:text-amber-600">View →</a>
                 </div>
             </div>
-'''
+        </div>
+        '''
 
         html_content += '''
         </div>
@@ -901,8 +902,7 @@ def create_shop_index():
                     <p class="text-gray-600 text-sm mb-2">{seller['region']}</p>
                     <div class="flex items-center justify-between">
                         <span class="text-amber-600 text-sm">{seller['products_count']} products</span>
-                        <a href="/seller/{phone}.html" class="text-amber-500 hover:text-amber-600 text-sm">View Profile →</a>
-                    </div>
+<a href="/seller/{phone}" class="text-amber-500 hover:text-amber-600 text-sm">View Profile →</a>                    </div>
                 </div>
             </div>
 '''
