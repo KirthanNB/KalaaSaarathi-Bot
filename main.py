@@ -13,11 +13,20 @@ import traceback
 from threading import Thread
 import time
 
+
+
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+# Store Twilio credentials in app context for background threads
+app.twilio_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+app.twilio_token = os.environ.get("TWILIO_AUTH_TOKEN")
+
+logger.info(f"Twilio SID configured: {bool(app.twilio_sid)}")
+logger.info(f"Twilio Token configured: {bool(app.twilio_token)}")
 
 # Thread-safe function to get Twilio client
 def get_twilio_client():
@@ -94,16 +103,34 @@ except Exception as e:
 
 # Utility functions
 def download_twilio_media(media_url):
-    """Download media from Twilio (thread-safe)"""
-    twilio_sid = os.environ.get("TWILIO_ACCOUNT_SID")
-    twilio_token = os.environ.get("TWILIO_AUTH_TOKEN")
-    
-    if not twilio_sid or not twilio_token:
-        raise Exception("Twilio credentials not configured")
-    
-    response = requests.get(media_url, auth=HTTPBasicAuth(twilio_sid, twilio_token))
-    response.raise_for_status()
-    return response.content
+    """Download media from Twilio (thread-safe with better error handling)"""
+    try:
+        twilio_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+        twilio_token = os.environ.get("TWILIO_AUTH_TOKEN")
+        
+        logger.info(f"Twilio SID available: {bool(twilio_sid)}")
+        logger.info(f"Twilio Token available: {bool(twilio_token)}")
+        
+        if not twilio_sid or not twilio_token:
+            logger.error("Twilio credentials missing from environment variables")
+            # Try to get from app context as fallback
+            try:
+                twilio_sid = getattr(app, 'twilio_sid', None)
+                twilio_token = getattr(app, 'twilio_token', None)
+                logger.info(f"Fallback SID: {bool(twilio_sid)}, Token: {bool(twilio_token)}")
+            except:
+                pass
+            
+            if not twilio_sid or not twilio_token:
+                raise Exception("Twilio credentials not configured in environment variables")
+        
+        response = requests.get(media_url, auth=HTTPBasicAuth(twilio_sid, twilio_token))
+        response.raise_for_status()
+        return response.content
+        
+    except Exception as e:
+        logger.error(f"Twilio media download failed: {str(e)}")
+        raise Exception(f"Failed to download media: {str(e)}")
 
 def save_image(content, filename):
     """Save image to temporary file"""
@@ -322,141 +349,156 @@ def handle_profile_command(phone_number, message):
         logger.error(f"Profile command error: {e}")
         return f"❌ Error: {str(e)}"
 
-# Background processing functions
 def process_image_background(media_url, phone_number):
-    """Process image in background thread"""
-    try:
-        logger.info(f"Background processing started for {phone_number}")
-        
-        # Get fresh Twilio client for this thread
-        twilio_client = get_twilio_client()
-        
-        # Download the image
-        image_content = download_twilio_media(media_url)
-        image_filename = f"{uuid.uuid4().hex}.jpg"
-        image_path = save_image(image_content, image_filename)
-        logger.info(f"Image saved to: {image_path}")
-        
-        # Step 1: Analyze with Gemini
+    """Process image in background thread with proper app context"""
+    with app.app_context():
         try:
-            if GEMINI_AVAILABLE:
-                analysis = describe_image(image_path)
-                # Extract title, price and category from analysis
-                title = extract_title_from_description(analysis)
-                price = extract_price_from_description(analysis)
-                category = extract_category_from_description(analysis)
-            else:
+            logger.info(f"Background processing started for {phone_number}")
+            
+            # Get Twilio credentials
+            twilio_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+            twilio_token = os.environ.get("TWILIO_AUTH_TOKEN")
+            
+            if not twilio_sid or not twilio_token:
+                logger.error("Twilio credentials not available in app context")
+                # Try to send error message
+                try:
+                    temp_client = Client(os.environ.get("TWILIO_ACCOUNT_SID"), os.environ.get("TWILIO_AUTH_TOKEN"))
+                    if temp_client:
+                        temp_client.messages.create(
+                            body="⚠️ Server configuration error. Please contact support.",
+                            from_="whatsapp:+14155238886",
+                            to=phone_number
+                        )
+                except:
+                    pass
+                return
+            
+            twilio_client = Client(twilio_sid, twilio_token)
+            
+            # Download the image
+            image_content = download_twilio_media(media_url)
+            image_filename = f"{uuid.uuid4().hex}.jpg"
+            image_path = save_image(image_content, image_filename)
+            logger.info(f"Image saved to: {image_path}")
+            
+            # Step 1: Analyze with Gemini
+            try:
+                if GEMINI_AVAILABLE:
+                    analysis = describe_image(image_path)
+                    # Extract title, price and category from analysis
+                    title = extract_title_from_description(analysis)
+                    price = extract_price_from_description(analysis)
+                    category = extract_category_from_description(analysis)
+                else:
+                    analysis = "Beautiful handmade craft with traditional artistry. Price band: ₹250-400 #handmade #craft #artisan"
+                    title = "Beautiful Handmade Craft"
+                    price = 350
+                    category = "handmade"
+                logger.info(f"Analysis complete: {analysis[:100]}...")
+                
+                # Send analysis first
+                twilio_client.messages.create(
+                    body=analysis,
+                    from_="whatsapp:+14155238886",
+                    to=phone_number
+                )
+            except Exception as e:
+                logger.error(f"Analysis error: {e}")
                 analysis = "Beautiful handmade craft with traditional artistry. Price band: ₹250-400 #handmade #craft #artisan"
                 title = "Beautiful Handmade Craft"
                 price = 350
                 category = "handmade"
-            logger.info(f"Analysis complete: {analysis[:100]}...")
+                twilio_client.messages.create(
+                    body=analysis,
+                    from_="whatsapp:+14155238886",
+                    to=phone_number
+                )
             
-            # Send analysis first
-            if twilio_client:
-                twilio_client.messages.create(
-                    body=analysis,
-                    from_="whatsapp:+14155238886",
-                    to=phone_number
-                )
-        except Exception as e:
-            logger.error(f"Analysis error: {e}")
-            analysis = "Beautiful handmade craft with traditional artistry. Price band: ₹250-400 #handmade #craft #artisan"
-            title = "Beautiful Handmade Craft"
-            price = 350
-            category = "handmade"
-            if twilio_client:
-                twilio_client.messages.create(
-                    body=analysis,
-                    from_="whatsapp:+14155238886",
-                    to=phone_number
-                )
-        
-        # Step 2: Process image
-        try:
-            if IMAGEN_AVAILABLE:
-                image_urls = remove_bg_and_upload(image_path)
-            else:
+            # Step 2: Process image
+            try:
+                if IMAGEN_AVAILABLE:
+                    image_urls = remove_bg_and_upload(image_path)
+                else:
+                    image_urls = [f"https://storage.googleapis.com/craftlink-images/fallback{i}.jpg" for i in range(1,5)]
+                logger.info(f"Image processing complete: {len(image_urls)} URLs")
+            except Exception as e:
+                logger.error(f"Image processing failed: {e}")
                 image_urls = [f"https://storage.googleapis.com/craftlink-images/fallback{i}.jpg" for i in range(1,5)]
-            logger.info(f"Image processing complete: {len(image_urls)} URLs")
-        except Exception as e:
-            logger.error(f"Image processing failed: {e}")
-            image_urls = [f"https://storage.googleapis.com/craftlink-images/fallback{i}.jpg" for i in range(1,5)]
-        
-        # Step 3: Generate shop URL
-        product_id = str(uuid.uuid4())
-        try:
-            if DEPLOY_AVAILABLE:
-                shop_url = build_and_host(product_id, analysis, image_urls, title, price)
-            else:
+            
+            # Step 3: Generate shop URL
+            product_id = str(uuid.uuid4())
+            try:
+                if DEPLOY_AVAILABLE:
+                    shop_url = build_and_host(product_id, analysis, image_urls, title, price)
+                else:
+                    shop_url = f"https://neethi-saarathi-ids.web.app/product/{product_id}.html"
+                logger.info(f"Shop URL generated: {shop_url}")
+            except Exception as e:
+                logger.error(f"Deployment failed: {e}")
                 shop_url = f"https://neethi-saarathi-ids.web.app/product/{product_id}.html"
-            logger.info(f"Shop URL generated: {shop_url}")
-        except Exception as e:
-            logger.error(f"Deployment failed: {e}")
-            shop_url = f"https://neethi-saarathi-ids.web.app/product/{product_id}.html"
-        
-        # Get seller profile
-        user_phone = phone_number.replace("whatsapp:", "")
-        seller_profile = get_seller_profile(user_phone) or {}
-        
-        # Update products.json with user reference
-        product_data = {
-            "id": product_id,
-            "title": title,
-            "description": analysis,
-            "price": price,
-            "images": image_urls,
-            "category": category,
-            "artisan_name": seller_profile.get("name", "Local Artisan"),
-            "artisan_region": seller_profile.get("region", "India"),
-            "artisan_phone": user_phone,
-            "created_at": datetime.now().isoformat(),
-            "user_phone": user_phone,
-            "rating": round(4.5 + (uuid.uuid4().int % 5) / 10, 1),
-            "reviews_count": uuid.uuid4().int % 25,
-            "orders_completed": uuid.uuid4().int % 50,
-            "in_stock": True
-        }
-        update_products_json(product_data)
-        
-        # Update shop index to include new product
-        if DEPLOY_AVAILABLE:
-            create_shop_index()
-            # Auto-deploy to Firebase
-            deploy_to_firebase()
-        
-        # Send shop link
-        if twilio_client:
+            
+            # Get seller profile
+            user_phone = phone_number.replace("whatsapp:", "")
+            seller_profile = get_seller_profile(user_phone) or {}
+            
+            # Update products.json with user reference
+            product_data = {
+                "id": product_id,
+                "title": title,
+                "description": analysis,
+                "price": price,
+                "images": image_urls,
+                "category": category,
+                "artisan_name": seller_profile.get("name", "Local Artisan"),
+                "artisan_region": seller_profile.get("region", "India"),
+                "artisan_phone": user_phone,
+                "created_at": datetime.now().isoformat(),
+                "user_phone": user_phone,
+                "rating": round(4.5 + (uuid.uuid4().int % 5) / 10, 1),
+                "reviews_count": uuid.uuid4().int % 25,
+                "orders_completed": uuid.uuid4().int % 50,
+                "in_stock": True
+            }
+            update_products_json(product_data)
+            
+            # Update shop index to include new product
+            if DEPLOY_AVAILABLE:
+                create_shop_index()
+                # Auto-deploy to Firebase
+                deploy_to_firebase()
+            
+            # Send shop link
             twilio_client.messages.create(
                 body=f"🛍️ Your shop is ready: {shop_url}",
                 from_="whatsapp:+14155238886",
                 to=phone_number
             )
-        
-        # Send final message with edit instructions
-        if twilio_client:
+            
+            # Send final message with edit instructions
             twilio_client.messages.create(
                 body=f"📦 We'll help you with shipping and payments!\n\nTo edit this product later:\n• edit {product_id[:8]} price NEW_PRICE\n• edit {product_id[:8]} description \"NEW_DESCRIPTION\"\n• edit {product_id[:8]} title \"NEW_TITLE\"\n• edit {product_id[:8]} category NEW_CATEGORY\n• edit {product_id[:8]} image + send new photo\n• Type 'myproducts' to see all your items\n• Type 'profile' to manage your seller profile",
                 from_="whatsapp:+14155238886",
                 to=phone_number
             )
-        
-        logger.info(f"Background processing completed for {phone_number}")
-        
-    except Exception as e:
-        logger.error(f"Background processing error: {e}")
-        logger.error(traceback.format_exc())
-        # Send error message
-        try:
-            twilio_client = get_twilio_client()
-            if twilio_client:
-                twilio_client.messages.create(
-                    body="⚠️ Sorry, I encountered an error processing your image. Please try again.",
-                    from_="whatsapp:+14155238886",
-                    to=phone_number
-                )
-        except Exception as send_error:
-            logger.error(f"Failed to send error message: {send_error}")
+            
+            logger.info(f"Background processing completed for {phone_number}")
+            
+        except Exception as e:
+            logger.error(f"Background processing error: {e}")
+            logger.error(traceback.format_exc())
+            # Send error message
+            try:
+                # Try to create a new client for error message
+                error_client = Client(os.environ.get("TWILIO_ACCOUNT_SID"), os.environ.get("TWILIO_AUTH_TOKEN"))
+                if error_client:
+                    error_client.messages.create(
+                        body="⚠️ Sorry, I encountered an error processing your image. Please try again.",
+                        from_="whatsapp:+14155238886",
+                        to=phone_number
+                    )
+            except Exception as send_error:
+                logger.error(f"Failed to send error message: {send_error}")
 
 def process_video_background(media_url, phone_number, caption=""):
     """Process video in background for reels"""
