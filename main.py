@@ -154,7 +154,8 @@ def get_product(product_id):
         if DEPLOY_AVAILABLE:
             return get_product_by_id(product_id)
         
-        products_file = "products.json"
+        # FIXED: Change from "../shop/out/products.json" to "out/products.json"
+        products_file = "out/products.json"
         if os.path.exists(products_file):
             with open(products_file, "r") as f:
                 data = json.load(f)
@@ -168,7 +169,11 @@ def get_product(product_id):
 def update_product(product_id, field, value):
     """Update product in products.json"""
     try:
-        products_file = "products.json"
+        # FIXED: Change from "../shop/out/products.json" to "out/products.json"
+        products_file = "out/products.json"
+        
+        # Ensure directory exists
+        os.makedirs("out", exist_ok=True)
         
         # Read existing products or create empty array
         if os.path.exists(products_file):
