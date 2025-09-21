@@ -1,1 +1,2 @@
-web: waitress-serve --port=$PORT main:app
+# Procfile  
+web: python -c "from main import app; import os; app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))"
