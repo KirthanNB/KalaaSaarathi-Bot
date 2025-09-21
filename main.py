@@ -94,6 +94,13 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "key.json"
 # Utility functions
 def download_twilio_media(media_url):
     """Download media from Twilio"""
+    # Get fresh credentials for each request (thread-safe)
+    twilio_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+    twilio_token = os.environ.get("TWILIO_AUTH_TOKEN")
+    
+    if not twilio_sid or not twilio_token:
+        raise Exception("Twilio credentials not configured")
+    
     response = requests.get(media_url, auth=HTTPBasicAuth(twilio_sid, twilio_token))
     response.raise_for_status()
     return response.content
@@ -320,11 +327,17 @@ def process_image_background(media_url, phone_number):
     try:
         logger.info(f"Background processing started for {phone_number}")
         
+        # Get fresh Twilio client for this thread
+        twilio_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+        twilio_token = os.environ.get("TWILIO_AUTH_TOKEN")
+        twilio_client = Client(twilio_sid, twilio_token) if twilio_sid and twilio_token else None
+        
         # Download the image
         image_content = download_twilio_media(media_url)
         image_filename = f"{uuid.uuid4().hex}.jpg"
         image_path = save_image(image_content, image_filename)
-        logger.info(f"Image saved to: {image_path}")
+        
+        # ... rest of the function remains the same ...
         
         # Step 1: Analyze with Gemini
         try:
@@ -451,8 +464,14 @@ def process_video_background(media_url, phone_number, caption=""):
     try:
         logger.info(f"Background video processing started for {phone_number}")
         
+        # Get fresh Twilio client for this thread
+        twilio_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+        twilio_token = os.environ.get("TWILIO_AUTH_TOKEN")
+        twilio_client = Client(twilio_sid, twilio_token) if twilio_sid and twilio_token else None
+        
         # Download the video
         video_content = download_twilio_media(media_url)
+        # ... rest of the function remains the same ...
         video_filename = f"{uuid.uuid4().hex}.mp4"
         video_path = save_video(video_content, video_filename)
         logger.info(f"Video saved to: {video_path}")
