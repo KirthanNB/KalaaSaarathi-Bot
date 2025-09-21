@@ -7,7 +7,7 @@ from datetime import datetime
 def build_and_host(product_id: str, description: str, image_urls: list, title: str = None, price: int = None) -> str:
     """Create HTML product page with enhanced design"""
     try:
-        # FIXED: Use current directory instead of ../shop/
+        # Use current directory for Railway compatibility
         shop_dir = "./out"
         product_dir = f"{shop_dir}/product"
         
@@ -210,32 +210,22 @@ def build_and_host(product_id: str, description: str, image_urls: list, title: s
 </html>'''
         
         # Save HTML file
-        # Save HTML file
         html_file = f"{product_dir}/{product_id}.html"
         with open(html_file, "w", encoding="utf-8") as f:
             f.write(html_content)
         
         print(f"✅ Created HTML: {html_file}")
         
-        # AUTO-DEPLOY TO FIREBASE
-        print("🔄 Auto-deploying to Firebase...")
-        deploy_success = deploy_to_firebase()
-        
-        if deploy_success:
-            print("✅ Product deployed successfully!")
-            return f"https://neethi-saarathi-ids.web.app/product/{product_id}"
-        else:
-            print("⚠️ Firebase deployment failed, using fallback URL")
-            return f"https://neethi-saarathi-ids.web.app/product/{product_id}"
+        # Return URL with .html extension for consistency
+        return f"https://neethi-saarathi-ids.web.app/product/{product_id}.html"
         
     except Exception as e:
         print(f"Error: {e}")
-        return f"https://neethi-saarathi-ids.web.app/product/{product_id}"
+        return f"https://neethi-saarathi-ids.web.app/product/{product_id}.html"
 
 def update_products_json(product_data):
     """Update the public products.json file"""
     try:
-        # FIXED: Use current directory
         shop_dir = "./out"
         products_file = f"{shop_dir}/products.json"
 
@@ -247,27 +237,17 @@ def update_products_json(product_data):
             try:
                 with open(products_file, "r") as f:
                     data = json.load(f)
-                    print(f"📖 Read existing products.json with {len(data.get('products', []))} products")
             except json.JSONDecodeError:
-                print("⚠️ products.json is corrupted, creating new one")
                 data = {"products": []}
         else:
-            print("📝 Creating new products.json")
             data = {"products": []}
 
         # Add new product (or replace if exists)
-        existing_ids = [p.get('id') for p in data["products"]]
-        if product_data['id'] in existing_ids:
-            print(f"🔄 Replacing existing product: {product_data['id']}")
-            data["products"] = [p for p in data["products"] if p.get('id') != product_data['id']]
-        
+        data["products"] = [p for p in data["products"] if p.get('id') != product_data['id']]
         data["products"].append(product_data)
-        print(f"➕ Added product: {product_data['title']} (ID: {product_data['id'][:8]}...)")
 
         # Keep only recent 50 products
-        if len(data["products"]) > 50:
-            print(f"✂️ Trimming products from {len(data['products'])} to 50")
-            data["products"] = data["products"][-50:]
+        data["products"] = data["products"][-50:]
 
         # Write back
         with open(products_file, "w") as f:
@@ -280,32 +260,19 @@ def update_products_json(product_data):
         # Create basic products.json if it doesn't exist
         with open(products_file, "w") as f:
             json.dump({"products": [product_data]}, f, indent=2)
-        print(f"📝 Created new products.json with 1 product")
-
-    except Exception as e:
-        print(f"❌ Failed to update products.json: {e}")
-        # Create basic products.json if it doesn't exist
-        with open(products_file, "w") as f:
-            json.dump({"products": [product_data]}, f, indent=2)
 
 def get_all_products():
     """Get all products from products.json"""
     try:
-        # FIXED: Use current directory
         shop_dir = "./out"
         products_file = f"{shop_dir}/products.json"
         
         if os.path.exists(products_file):
             with open(products_file, "r") as f:
                 data = json.load(f)
-                products = data.get("products", [])
-                print(f"📊 Found {len(products)} products in products.json")
-                return products
-        else:
-            print("❌ products.json does not exist")
-            return []
-    except Exception as e:
-        print(f"❌ Error reading products.json: {e}")
+                return data.get("products", [])
+        return []
+    except:
         return []
 
 def get_product_by_id(product_id):
@@ -319,7 +286,6 @@ def get_product_by_id(product_id):
 def update_seller_profile(phone, profile_data):
     """Update seller profile"""
     try:
-        # FIXED: Use current directory
         shop_dir = "./out"
         sellers_file = f"{shop_dir}/sellers.json"
 
@@ -359,7 +325,6 @@ def update_seller_profile(phone, profile_data):
 def get_seller_profile(phone):
     """Get seller profile by phone number"""
     try:
-        # FIXED: Use current directory
         shop_dir = "./out"
         sellers_file = f"{shop_dir}/sellers.json"
         
@@ -376,7 +341,6 @@ def get_seller_profile(phone):
 def add_reel(reel_data):
     """Add a new reel"""
     try:
-        # FIXED: Use current directory
         shop_dir = "./out"
         reels_file = f"{shop_dir}/reels.json"
 
@@ -411,27 +375,20 @@ def add_reel(reel_data):
 def get_all_reels():
     """Get all reels"""
     try:
-        # FIXED: Use current directory
         shop_dir = "./out"
         reels_file = f"{shop_dir}/reels.json"
         
         if os.path.exists(reels_file):
             with open(reels_file, "r") as f:
                 data = json.load(f)
-                reels = data.get("reels", [])
-                print(f"🎥 Found {len(reels)} reels in reels.json")
-                return reels
-        else:
-            print("❌ reels.json does not exist")
-            return []
-    except Exception as e:
-        print(f"❌ Error reading reels.json: {e}")
+                return data.get("reels", [])
+        return []
+    except:
         return []
 
 def create_seller_pages():
     """Create HTML pages for each seller"""
     try:
-        # FIXED: Use current directory
         shop_dir = "./out"
         sellers_file = f"{shop_dir}/sellers.json"
         products_file = f"{shop_dir}/products.json"
@@ -498,7 +455,7 @@ def create_seller_pages():
 '''
 
             # Add seller's products
-            for product in seller_products[:9]:  # Show first 9 products
+            for product in seller_products[:9]:
                 html_content += f'''
             <div class="bg-white rounded-xl shadow-md overflow-hidden product-card" data-category="{product.get('category', 'handmade')}">
                 <img src="{product['images'][0]}" alt="{product['title']}" class="w-full h-48 object-cover">
@@ -507,7 +464,7 @@ def create_seller_pages():
                     <p class="text-gray-600 text-sm mb-3">{product['description'][:70]}{'...' if len(product['description']) > 70 else ''}</p>
                     <div class="flex items-center justify-between">
                         <span class="text-amber-600 font-bold">₹{product['price']}</span>
-                        <a href="/product/{product['id']}" target="_blank" class="text-amber-500 hover:text-amber-600">View →</a>
+                        <a href="/product/{product['id']}.html" class="text-amber-500 hover:text-amber-600">View →</a>
                     </div>
                 </div>
             </div>
@@ -528,7 +485,7 @@ def create_seller_pages():
             # Save seller page
             seller_dir = f"{shop_dir}/seller"
             os.makedirs(seller_dir, exist_ok=True)
-            with open(f"{seller_dir}/{seller_phone}", "w", encoding="utf-8") as f:
+            with open(f"{seller_dir}/{seller_phone}.html", "w", encoding="utf-8") as f:
                 f.write(html_content)
         
         print("✅ Created seller profile pages")
@@ -537,36 +494,39 @@ def create_seller_pages():
         print(f"❌ Error creating seller pages: {e}")
 
 def deploy_to_firebase():
-    """Deploy to Firebase Hosting"""
+    """Deploy to Firebase Hosting with proper file handling"""
     try:
         print("🚀 Deploying to Firebase...")
         
-        # Ensure directories exist
+        # Ensure firebase.json exists with correct configuration
+        firebase_config = {
+            "hosting": {
+                "public": "out",
+                "ignore": [
+                    "firebase.json",
+                    "**/.*",
+                    "**/node_modules/**"
+                ],
+                "rewrites": [
+                    {
+                        "source": "**",
+                        "destination": "/index.html"
+                    }
+                ],
+                "cleanUrls": false,
+                "trailingSlash": false
+            }
+        }
+        
+        # Write/update firebase.json
+        with open("firebase.json", "w") as f:
+            json.dump(firebase_config, f, indent=2)
+        
+        # Ensure all directories exist
         os.makedirs("out/product", exist_ok=True)
         os.makedirs("out/seller", exist_ok=True)
         
-        # Ensure firebase.json exists
-        if not os.path.exists("firebase.json"):
-            firebase_config = {
-                "hosting": {
-                    "public": "out",
-                    "ignore": [
-                        "firebase.json",
-                        "**/.*",
-                        "**/node_modules/**"
-                    ],
-                    "rewrites": [
-                        {
-                            "source": "**",
-                            "destination": "/index.html"
-                        }
-                    ]
-                }
-            }
-            with open("firebase.json", "w") as f:
-                json.dump(firebase_config, f, indent=2)
-        
-        # Simple deployment without initialization
+        # Deploy to Firebase
         result = subprocess.run(
             "firebase deploy --only hosting --non-interactive",
             shell=True,
@@ -577,16 +537,9 @@ def deploy_to_firebase():
         
         if result.returncode == 0:
             print("✅ Firebase deployment successful!")
-            print("📋 Deployment details:")
-            print(result.stdout)
             return True
         else:
             print(f"❌ Firebase deployment failed: {result.stderr}")
-            
-            # Check if we need to setup Firebase first
-            if "No project active" in result.stderr or "Not in a Firebase app directory" in result.stderr:
-                print("⚠️ Firebase project not configured. Please run: python setup_firebase.py")
-            
             return False
             
     except subprocess.TimeoutExpired:
@@ -596,107 +549,43 @@ def deploy_to_firebase():
         print(f"❌ Firebase deployment error: {e}")
         return False
 
-def manual_firebase_deploy():
-    """Alternative deployment method"""
-    try:
-        print("🔄 Trying manual deployment...")
-        
-        # Create a simple deploy script
-        deploy_script = """
-#!/bin/bash
-cd out
-find . -name "*.html" -exec echo "Deploying: {}" \\;
-echo "Manual deployment complete"
-"""
-        
-        with open("deploy.sh", "w") as f:
-            f.write(deploy_script)
-        
-        # Run the deploy script
-        result = subprocess.run("bash deploy.sh", shell=True, capture_output=True, text=True)
-        print(result.stdout)
-        
-        return True
-    except Exception as e:
-        print(f"❌ Manual deployment also failed: {e}")
-        return False
-
-def verify_deployment():
-    """Verify that product files were deployed"""
-    try:
-        # Check if product directory exists in deployment
-        import requests
-        test_url = "https://neethi-saarathi-ids.web.app/product/test.html"
-        response = requests.head(test_url)
-        
-        if response.status_code == 404:
-            print("⚠️ Product directory not deployed. Creating it...")
-            # Create product directory and redeploy
-            os.makedirs("out/product", exist_ok=True)
-            # Create a test file to ensure directory is included
-            with open("out/product/test.html", "w") as f:
-                f.write("<!-- Test file to ensure product directory is deployed -->")
-            
-            # Redeploy
-            subprocess.run(
-                "firebase deploy --only hosting --non-interactive",
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=300
-            )
-    except:
-        pass
-
-def initialize_json_files():
-    """Initialize products.json, sellers.json, and reels.json if they don't exist"""
-    shop_dir = "./out"
-    os.makedirs(shop_dir, exist_ok=True)
-    
-    # Initialize products.json
-    products_file = f"{shop_dir}/products.json"
-    if not os.path.exists(products_file):
-        with open(products_file, "w") as f:
-            json.dump({"products": []}, f, indent=2)
-        print("📝 Created empty products.json")
-    
-    # Initialize sellers.json
-    sellers_file = f"{shop_dir}/sellers.json"
-    if not os.path.exists(sellers_file):
-        with open(sellers_file, "w") as f:
-            json.dump({"sellers": []}, f, indent=2)
-        print("📝 Created empty sellers.json")
-    
-    # Initialize reels.json
-    reels_file = f"{shop_dir}/reels.json"
-    if not os.path.exists(reels_file):
-        with open(reels_file, "w") as f:
-            json.dump({"reels": []}, f, indent=2)
-        print("📝 Created empty reels.json")
-
-# Create a complete shop index with products, sellers, and reels
 def create_shop_index():
     """Create the main shop index page with all products, sellers, and reels"""
     try:
         # Initialize JSON files first
-        initialize_json_files()
-        
-        # FIXED: Use current directory
         shop_dir = "./out"
+        os.makedirs(shop_dir, exist_ok=True)
+        
+        # Initialize products.json if it doesn't exist
+        products_file = f"{shop_dir}/products.json"
+        if not os.path.exists(products_file):
+            with open(products_file, "w") as f:
+                json.dump({"products": []}, f, indent=2)
+        
+        # Initialize sellers.json if it doesn't exist
+        sellers_file = f"{shop_dir}/sellers.json"
+        if not os.path.exists(sellers_file):
+            with open(sellers_file, "w") as f:
+                json.dump({"sellers": []}, f, indent=2)
+        
+        # Initialize reels.json if it doesn't exist
+        reels_file = f"{shop_dir}/reels.json"
+        if not os.path.exists(reels_file):
+            with open(reels_file, "w") as f:
+                json.dump({"reels": []}, f, indent=2)
+        
         products = get_all_products()
         reels = get_all_reels()
         
         # DEBUG: Print what products were found
         print(f"📦 Found {len(products)} products for index page")
-        for i, product in enumerate(products[-5:]):  # Show last 5 products
+        for i, product in enumerate(products[-5:]):
             print(f"   Product {i+1}: {product.get('title', 'No title')} - ₹{product.get('price', 'N/A')}")
         
         # DEBUG: Print what reels were found
         print(f"🎥 Found {len(reels)} reels for index page")
         
-        # Ensure directory exists
-        os.makedirs(shop_dir, exist_ok=True)
-        
+        # Create the HTML content
         html_content = '''<!DOCTYPE html>
 <html lang="hi">
 <head>
@@ -845,21 +734,20 @@ def create_shop_index():
 '''
 
         # Add product cards (show latest 12 products)
-        # Add product cards (show latest 12 products)
         for product in products[-12:]:
             html_content += f'''
-        <div class="product-card bg-white rounded-xl shadow-md overflow-hidden" data-category="{product.get('category', 'handmade')}">
-            <img src="{product['images'][0]}" alt="{product['title']}" class="w-full h-48 object-cover">
-            <div class="p-4">
-                <h3 class="font-semibold text-lg mb-2">{product['title'][:50]}{'...' if len(product['title']) > 50 else ''}</h3>
-                <p class="text-gray-600 text-sm mb-3">{product['description'][:80]}{'...' if len(product['description']) > 80 else ''}</p>
-                <div class="flex items-center justify-between">
-                    <span class="text-amber-600 font-bold">₹{product['price']}</span>
-                    <a href="/product/{product['id']}" class="text-amber-500 hover:text-amber-600">View →</a>
+            <div class="product-card bg-white rounded-xl shadow-md overflow-hidden" data-category="{product.get('category', 'handmade')}">
+                <img src="{product['images'][0]}" alt="{product['title']}" class="w-full h-48 object-cover">
+                <div class="p-4">
+                    <h3 class="font-semibold text-lg mb-2">{product['title'][:50]}{'...' if len(product['title']) > 50 else ''}</h3>
+                    <p class="text-gray-600 text-sm mb-3">{product['description'][:80]}{'...' if len(product['description']) > 80 else ''}</p>
+                    <div class="flex items-center justify-between">
+                        <span class="text-amber-600 font-bold">₹{product['price']}</span>
+                        <a href="/product/{product['id']}.html" class="text-amber-500 hover:text-amber-600">View →</a>
+                    </div>
                 </div>
             </div>
-        </div>
-        '''
+'''
 
         html_content += '''
         </div>
@@ -902,7 +790,8 @@ def create_shop_index():
                     <p class="text-gray-600 text-sm mb-2">{seller['region']}</p>
                     <div class="flex items-center justify-between">
                         <span class="text-amber-600 text-sm">{seller['products_count']} products</span>
-<a href="/seller/{phone}" class="text-amber-500 hover:text-amber-600 text-sm">View Profile →</a>                    </div>
+                        <a href="/seller/{phone}.html" class="text-amber-500 hover:text-amber-600 text-sm">View Profile →</a>
+                    </div>
                 </div>
             </div>
 '''
@@ -912,7 +801,7 @@ def create_shop_index():
 
         <!-- Footer -->
         <div class="text-center text-gray-600 mt-12">
-            <p>© 2023 KalaaSaarathi. All rights reserved.</p>
+            <p>© 2025 KalaaSaarathi. All rights reserved.</p>
             <p class="text-sm mt-2">Supporting Indian artisans one craft at a time</p>
         </div>
     </div>
@@ -991,7 +880,6 @@ def create_shop_index():
         print(f"❌ Error creating index.html: {e}")
 
 # Test function
-# Test function
 def test_deployment():
     """Test the complete deployment"""
     print("Testing complete deployment...")
@@ -1005,44 +893,8 @@ def test_deployment():
 
     shop_url = build_and_host(product_id, description, image_urls)
     print(f"Final Shop URL: {shop_url}")
-    
-    # Verify the file was created
-    if os.path.exists(f"out/product/{product_id}.html"):
-        print("✅ Product HTML file created successfully!")
-    else:
-        print("❌ Product HTML file was NOT created!")
-    
     return shop_url
 
-def verify_deployment_files():
-    """Verify what files will be deployed"""
-    print("🔍 Checking files for deployment...")
-    
-    if not os.path.exists("out"):
-        print("❌ out directory does not exist!")
-        return
-    
-    file_count = 0
-    for root, dirs, files in os.walk("out"):
-        for file in files:
-            if not file.startswith('.'):  # Skip hidden files
-                file_path = os.path.join(root, file)
-                file_count += 1
-                if file_count <= 10:  # Show first 10 files
-                    size = os.path.getsize(file_path)
-                    print(f"   {file_path} ({size} bytes)")
-    
-    print(f"📁 Total files ready for deployment: {file_count}")
-    
-    # Check product files specifically
-    product_dir = "out/product"
-    if os.path.exists(product_dir):
-        product_files = [f for f in os.listdir(product_dir) if f.endswith('.html')]
-        print(f"📦 Product HTML files: {len(product_files)}")
-        if product_files:
-            print(f"   Sample: {product_files[:3]}")
-    else:
-        print("❌ No product directory found!")
 
 if __name__ == "__main__":
     # Create shop index when this module is run directly
