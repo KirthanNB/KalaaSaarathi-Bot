@@ -19,10 +19,14 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# Initialize Twilio client
-twilio_sid = os.environ.get("TWILIO_ACCOUNT_SID")
-twilio_token = os.environ.get("TWILIO_AUTH_TOKEN")
-twilio_client = Client(twilio_sid, twilio_token) if twilio_sid and twilio_token else None
+# Thread-safe function to get Twilio client
+def get_twilio_client():
+    """Get a fresh Twilio client with current credentials"""
+    twilio_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+    twilio_token = os.environ.get("TWILIO_AUTH_TOKEN")
+    if twilio_sid and twilio_token:
+        return Client(twilio_sid, twilio_token)
+    return None
 
 # Import our modules with fallbacks
 try:
@@ -88,13 +92,9 @@ except Exception as e:
     SMS_AVAILABLE = False
     def send_tracking(to, awb): print(f"Tracking sent to {to}: {awb}")
 
-# Set Google credentials
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "key.json"
-
 # Utility functions
 def download_twilio_media(media_url):
-    """Download media from Twilio"""
-    # Get fresh credentials for each request (thread-safe)
+    """Download media from Twilio (thread-safe)"""
     twilio_sid = os.environ.get("TWILIO_ACCOUNT_SID")
     twilio_token = os.environ.get("TWILIO_AUTH_TOKEN")
     
@@ -171,6 +171,7 @@ def update_product(product_id, field, value):
         logger.error(f"Update product error: {e}")
         return False
 
+# Command handlers
 def handle_edit_command(phone_number, message, media_url=None):
     """Handle edit commands from WhatsApp"""
     try:
@@ -328,16 +329,13 @@ def process_image_background(media_url, phone_number):
         logger.info(f"Background processing started for {phone_number}")
         
         # Get fresh Twilio client for this thread
-        twilio_sid = os.environ.get("TWILIO_ACCOUNT_SID")
-        twilio_token = os.environ.get("TWILIO_AUTH_TOKEN")
-        twilio_client = Client(twilio_sid, twilio_token) if twilio_sid and twilio_token else None
+        twilio_client = get_twilio_client()
         
         # Download the image
         image_content = download_twilio_media(media_url)
         image_filename = f"{uuid.uuid4().hex}.jpg"
         image_path = save_image(image_content, image_filename)
-        
-        # ... rest of the function remains the same ...
+        logger.info(f"Image saved to: {image_path}")
         
         # Step 1: Analyze with Gemini
         try:
@@ -450,6 +448,7 @@ def process_image_background(media_url, phone_number):
         logger.error(traceback.format_exc())
         # Send error message
         try:
+            twilio_client = get_twilio_client()
             if twilio_client:
                 twilio_client.messages.create(
                     body="⚠️ Sorry, I encountered an error processing your image. Please try again.",
@@ -465,13 +464,10 @@ def process_video_background(media_url, phone_number, caption=""):
         logger.info(f"Background video processing started for {phone_number}")
         
         # Get fresh Twilio client for this thread
-        twilio_sid = os.environ.get("TWILIO_ACCOUNT_SID")
-        twilio_token = os.environ.get("TWILIO_AUTH_TOKEN")
-        twilio_client = Client(twilio_sid, twilio_token) if twilio_sid and twilio_token else None
+        twilio_client = get_twilio_client()
         
         # Download the video
         video_content = download_twilio_media(media_url)
-        # ... rest of the function remains the same ...
         video_filename = f"{uuid.uuid4().hex}.mp4"
         video_path = save_video(video_content, video_filename)
         logger.info(f"Video saved to: {video_path}")
@@ -529,6 +525,7 @@ def process_video_background(media_url, phone_number, caption=""):
         logger.error(traceback.format_exc())
         # Send error message
         try:
+            twilio_client = get_twilio_client()
             if twilio_client:
                 twilio_client.messages.create(
                     body="⚠️ Sorry, I encountered an error processing your video. Please try again.",
